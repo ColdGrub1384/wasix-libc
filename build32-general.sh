@@ -51,7 +51,16 @@ libcxx_build_dir="build/libcxx-$NAME"
 libcxx_output="build/libcxx-sysroot-$NAME"
 libcxx_build_sysroot="build/libcxx-build-sysroot-$NAME"
 
+flang_rt_build_dir="build/flang-rt-$NAME"
+flang_rt_output="build/flang-rt-sysroot-$NAME"
+flang_rt_build_sysroot="build/flang-rt-build-sysroot-$NAME"
+
+openmp_build_dir="build/openmp-$NAME"
+openmp_output="build/openmp-sysroot-$NAME"
+openmp_build_sysroot="build/openmp-build-sysroot-$NAME"
+
 sysroot_output="sysroot$NAME"
+clang_output="clang$NAME"
 
 ### Build settings
 
@@ -199,7 +208,6 @@ libcxx() {
     rm -rf $libcxx_build_sysroot
     rm -rf $libcxx_output
 
-
     mkdir -p $libcxx_build_sysroot
     rsync -abuz  $compiler_rt_output/ $libcxx_build_sysroot/
     rsync -abuz  $wasix_libc_output/ $libcxx_build_sysroot/
@@ -254,12 +262,152 @@ libcxx() {
     cmake --install $libcxx_build_dir
 }
 
+# Build flang-rt
+flang-rt() {
+    if [ "$EH" = "ON" ]; then
+        runtimes="flang-rt"
+    else
+        runtimes="flang-rt"
+    fi
+
+    # Cleanup previous build artifacts
+    rm -rf $flang_rt_build_dir
+    rm -rf $flang_rt_build_sysroot
+    rm -rf $flang_rt_output
+
+    mkdir -p $flang_rt_build_sysroot
+    rsync -abuz  $compiler_rt_output/ $flang_rt_build_sysroot/
+    rsync -abuz  $wasix_libc_output/ $flang_rt_build_sysroot/
+    export WASIXCC_SYSROOT="$REPO_ROOT"/$flang_rt_build_sysroot
+
+    cmake \
+        -DCMAKE_SYSTEM_NAME=WASI \
+        -DCMAKE_SYSTEM_VERSION=1 \
+        -DCMAKE_SYSTEM_PROCESSOR=wasm32 \
+        -DCMAKE_POSITION_INDEPENDENT_CODE="$PIC" \
+        -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN" \
+        -DCMAKE_C_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS -fdeclspec" \
+        -DCMAKE_CXX_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS -fdeclspec -I'$REPO_ROOT/$libcxx_output/include/c++/v1'" \
+        -DCMAKE_ASM_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS" \
+        -DCMAKE_SYSROOT="$REPO_ROOT"/$libcxx_build_sysroot \
+        -DCMAKE_INSTALL_PREFIX="$REPO_ROOT"/$flang_rt_output \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DFLANG_RT_BUILD_STATIC_LIBRARY:BOOL=ON \
+        -DFLANG_RT_BUILD_SHARED_LIBRARY:BOOL=OFF \
+        -DFLANG_RT_INCLUDE_TESTS:BOOL=OFF \
+        -DFLANG_RT_BUILD_FORTRAN_MODULES:BOOL=ON \
+        -DFLANG_RT_INSTALL_RESOURCE_PATH=lib/wasm32-wasip1 \
+        -DCMAKE_C_COMPILER_WORKS=ON \
+        -DCMAKE_CXX_COMPILER_WORKS=ON \
+        -DCMAKE_Fortran_COMPILER_WORKS=ON \
+        -DCMAKE_Fortran_COMPILER="$(which flang)" \
+        -DLLVM_Fortran_COMPILER_WORKS=ON \
+        -DLLVM_Fortran_COMPILER="$(which flang)" \
+        -DLLVM_DEFAULT_TARGET_TRIPLE=wasm32-wasip1 \
+        -DLLVM_RUNTIME_TARGETS=wasm32-wasip1 \
+        -DLLVM_TARGET_TRIPLE=wasm32-wasip1 \
+        -DLLVM_COMPILER_CHECKED=ON \
+        -DLLVM_ENABLE_PIC="$PIC" \
+        -DUNIX:BOOL=ON \
+        -DCOMPILER_RT_OS_DIR=wasm32-wasip1 \
+        -DLLVM_ENABLE_RUNTIMES="$runtimes" \
+        -B $flang_rt_build_dir \
+        -S tools/llvm-project/runtimes
+    cmake --build $flang_rt_build_dir --parallel 16
+    cmake --install $flang_rt_build_dir
+}
+
+# Build OpenMP static library 
+openmp() {
+    # Cleanup previous build artifacts
+    rm -rf $openmp_build_dir
+    rm -rf $openmp_build_sysroot
+    rm -rf $openmp_output
+
+    mkdir -p $openmp_build_sysroot
+    rsync -abuz  $compiler_rt_output/ $openmp_build_sysroot/
+    rsync -abuz  $wasix_libc_output/ $openmp_build_sysroot/
+    rsync -abuz  $libcxx_output/ $openmp_build_sysroot/
+    export WASIXCC_SYSROOT="$REPO_ROOT"/$openmp_build_sysroot
+
+    cmake \
+        -DCMAKE_SYSTEM_NAME=WASI \
+        -DCMAKE_SYSTEM_VERSION=1 \
+        -DCMAKE_SYSTEM_PROCESSOR=wasm32 \
+        -DCMAKE_POSITION_INDEPENDENT_CODE="$PIC" \
+        -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN" \
+        -DCMAKE_C_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS -pthread -fdeclspec" \
+        -DCMAKE_CXX_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS -pthread -fdeclspec" \
+        -DCMAKE_ASM_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS" \
+        -DCMAKE_SYSROOT="$REPO_ROOT"/$openmp_build_sysroot \
+        -DCMAKE_INSTALL_PREFIX="$REPO_ROOT"/$openmp_output \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_C_COMPILER_WORKS=ON \
+        -DCMAKE_CXX_COMPILER_WORKS=ON \
+        -DCMAKE_Fortran_COMPILER="$(which flang)" \
+        -DCMAKE_Fortran_COMPILER_WORKS=ON \
+        -DLIBOMP_FORTRAN_MODULES=ON \
+        -DLIBOMP_ENABLE_SHARED=OFF \
+        -DLIBOMP_OMPT_SUPPORT=OFF \
+        -DLIBOMP_USE_HWLOC=OFF \
+        -DLIBOMP_INSTALL_ALIASES=OFF \
+        -DOPENMP_ENABLE_LIBOMPTARGET=OFF \
+        -DLIBOMP_ARCH=wasm32 \
+        -DOPENMP_STANDALONE_BUILD=OFF \
+        -DLLVM_DEFAULT_TARGET_TRIPLE=wasm32-wasip1 \
+        -DLLVM_RUNTIME_TARGETS=wasm32-wasip1 \
+        -DLLVM_TARGET_TRIPLE=wasm32-wasip1 \
+        -DLLVM_COMPILER_CHECKED=ON \
+        -DLLVM_ENABLE_PIC="$PIC" \
+        -DUNIX:BOOL=ON \
+        -DCOMPILER_RT_OS_DIR=wasm32-wasip1 \
+        -DLLVM_ENABLE_RUNTIMES="flang-rt;openmp" \
+        -B $openmp_build_dir \
+        -S tools/llvm-project/runtimes
+    cmake --build $openmp_build_dir --parallel 16
+    cmake --install $openmp_build_dir
+}
+
 sysroot() {
     rm -rf $sysroot_output
     mkdir -p $sysroot_output
-    rsync -abuz  $compiler_rt_output/ $sysroot_output/
-    rsync -abuz  $wasix_libc_output/ $sysroot_output/
-    rsync -abuz  $libcxx_output/ $sysroot_output/
+    rsync -auz  $compiler_rt_output/ $sysroot_output/
+    rsync -auz  $wasix_libc_output/ $sysroot_output/
+    rsync -auz  $libcxx_output/ $sysroot_output/
+    rsync -auz  $flang_rt_output/ $sysroot_output/
+    rsync -auz  $openmp_output/ $sysroot_output/
+}
+
+clang-resource-dir() {
+    rm -rf $clang_output
+    mkdir -p $clang_output/lib/wasm32-unknown-wasip1
+
+    # clang headers
+    cp -r "$REPO_ROOT/tools/llvm-project/clang/lib/Headers" $clang_output/include
+    rm -f $clang_output/include/CMakeLists.txt
+
+    # libclang_rt
+    mv $sysroot_output/lib/wasm32-wasip1/libclang_rt.builtins*.a \
+       $clang_output/lib/wasm32-unknown-wasip1/libclang_rt.builtins.a
+    mv $sysroot_output/lib/wasm32-wasip1/libclang_rt.profile*.a \
+       $clang_output/lib/wasm32-unknown-wasip1/libclang_rt.profile.a
+
+    # flang modules
+    mkdir -p $clang_output/finclude/flang/wasm32-unknown-wasip1
+    find "$sysroot_output/lib/clang" \
+         -path '*/finclude/flang/wasm32-wasip1/*.mod' -type f \
+         -exec cp {} $clang_output/finclude/flang/wasm32-unknown-wasip1/ \;
+
+    # libflang_rt
+    mv $sysroot_output/lib/clang/*/lib/wasm32-wasip1/libflang_rt.runtime.a \
+       $clang_output/lib/wasm32-unknown-wasip1
+
+    # libomp
+    mv $sysroot_output/lib/libomp.a $sysroot_output/lib/wasm32-wasip1/
+
+    # remove stuff
+    rm -rf $sysroot_output/lib/clang
+    rm -rf $sysroot_output/lib/cmake
 }
 
 ### Run build steps
@@ -272,5 +420,11 @@ wasix_libc
 compiler_rt
 # Build C++ sysroot
 libcxx
-# Combine libcxx, wasix-libc and compiler-rt into one
+# Build flang rt
+flang-rt
+# Build OpenMP static library
+openmp
+# Combine libcxx and wasix-libc into one
 sysroot
+# Build the clang resource dir
+clang-resource-dir
