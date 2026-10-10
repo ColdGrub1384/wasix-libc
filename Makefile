@@ -42,8 +42,8 @@ BULK_MEMORY_THRESHOLD ?= 32
 # Set the target variables. Multiarch triples notably omit the vendor field,
 # which happens to be what we do for the main target triple too.
 #TARGET_ARCH = wasm32
-TARGET_TRIPLE = $(TARGET_ARCH)-wasi
-MULTIARCH_TRIPLE = $(TARGET_ARCH)-wasi
+TARGET_TRIPLE = $(TARGET_ARCH)-wasip1
+MULTIARCH_TRIPLE = $(TARGET_ARCH)-wasip1
 
 # These variables describe the locations of various files and directories in
 # the source tree.
@@ -551,7 +551,7 @@ wasix-headers:
 	cargo run --manifest-path tools/wasix-headers/Cargo.toml generate-libc
 
 post-finish: finish
-	rm -f sysroot/lib/wasm32-wasi/libc-printscan-log-double.a
+	rm -f sysroot/lib/wasm32-wasip1/libc-printscan-log-double.a
 
 $(SYSROOT_LIB)/libc.a: $(LIBC_OBJS)
 

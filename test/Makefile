@@ -116,7 +116,7 @@ ifeq ($(origin CC), default)
 CC := clang
 endif
 LDFLAGS ?=
-CFLAGS ?= --target=wasm32-wasi --sysroot=../sysroot
+CFLAGS ?= --target=wasm32-wasip1 --sysroot=../sysroot
 # Always include the `libc-test` infrastructure headers.
 CFLAGS += -I$(LIBC_TEST)/src/common
 

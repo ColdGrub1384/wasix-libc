@@ -113,8 +113,8 @@ compiler_rt() {
         -DCOMPILER_RT_ENABLE_STATIC_UNWINDER=OFF \
         -DHAVE_UNWIND_H=OFF \
         -DCOMPILER_RT_HAS_FUNWIND_TABLES_FLAG=OFF \
-        -DCMAKE_C_COMPILER_TARGET=wasm32-wasi \
-        -DCOMPILER_RT_OS_DIR=wasm32-wasi \
+        -DCMAKE_C_COMPILER_TARGET=wasm32-wasip1 \
+        -DCOMPILER_RT_OS_DIR=wasm32-wasip1 \
         -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN" \
         -DCMAKE_SYSROOT="$REPO_ROOT"/$compiler_rt_build_sysroot \
         -DCMAKE_INSTALL_PREFIX="$REPO_ROOT"/$compiler_rt_output \
@@ -123,7 +123,7 @@ compiler_rt() {
         -S tools/llvm-project/compiler-rt
     cmake --build $compiler_rt_build_dir --parallel 16
     cmake --install $compiler_rt_build_dir
-    llvm-ranlib $compiler_rt_output/lib/wasm32-wasi/libclang_rt.builtins-wasm32.a
+    llvm-ranlib $compiler_rt_output/lib/wasm32-wasip1/libclang_rt.builtins-wasm32.a
 }
 
 # Regenerate bindings in libc-bottom-half
@@ -168,12 +168,12 @@ wasix_libc() {
 
     # Cleanup previous build artifacts
     rm -rf sysroot
-    rm -rf build/wasm32-wasi
+    rm -rf build/wasm32-wasip1
     rm -rf $wasix_libc_output
 
     # shellcheck disable=SC2086
     CC=clang CXX=clang++ make CHECK_SYMBOLS="${CHECK_SYMBOLS:-yes}" -j 16 $MAKEFLAGS
-    rm -f sysroot/lib/wasm32-wasi/libc-printscan-long-double.a
+    rm -f sysroot/lib/wasm32-wasip1/libc-printscan-long-double.a
     rm -rf $wasix_libc_output
     mv sysroot $wasix_libc_output
 }
@@ -236,9 +236,9 @@ libcxx() {
         -DLLVM_COMPILER_CHECKED=ON \
         -DLLVM_ENABLE_PIC="$PIC" \
         -DUNIX:BOOL=ON \
-        -DLIBCXX_LIBDIR_SUFFIX=/wasm32-wasi \
-        -DLIBCXXABI_LIBDIR_SUFFIX=/wasm32-wasi \
-        -DLLVM_LIBDIR_SUFFIX=/wasm32-wasi \
+        -DLIBCXX_LIBDIR_SUFFIX=/wasm32-wasip1 \
+        -DLIBCXXABI_LIBDIR_SUFFIX=/wasm32-wasip1 \
+        -DLLVM_LIBDIR_SUFFIX=/wasm32-wasip1 \
         -DLLVM_ENABLE_RUNTIMES="$runtimes" \
         -B $libcxx_build_dir \
         -S tools/llvm-project/runtimes
