@@ -1,5 +1,8 @@
 .ccls*
 /sysroot*
+/clang*
+/wasix-sdk.tar.gz
 build
 .vscode
 dist
+.DS_Store
