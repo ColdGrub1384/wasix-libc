@@ -2,53 +2,69 @@
 #include <stdlib.h>
 #include <sysexits.h>
 
-// The user's `main` function, expecting arguments.
-int __main_argc_argv(int argc, char *argv[]);
-
-// If the user's `main` function expects arguments, the compiler will rename
-// it to `__main_argc_argv`, and this version will get linked in, which
-// initializes the argument data and calls `__main_argc_argv`.
-__attribute__((__weak__, nodebug))
-int __main_void(void) {
+// Fetch argc and argv from WASI. Returns 0 on success, -1 on failure.
+static int __get_args(int *argc_out, char ***argv_out, char **argv_buf_out) {
     __wasi_errno_t err;
-
-    // Get the sizes of the arrays we'll have to create to copy in the args.
     __wasi_size_t argv_buf_size;
     __wasi_size_t argc;
+
     err = __wasi_args_sizes_get(&argc, &argv_buf_size);
-    if (err != __WASI_ERRNO_SUCCESS) {
-        _Exit(EX_OSERR);
-    }
+    if (err != __WASI_ERRNO_SUCCESS) return -1;
 
-    // Add 1 for the NULL pointer to mark the end, and check for overflow.
     size_t num_ptrs = argc + 1;
-    if (num_ptrs == 0) {
-        _Exit(EX_SOFTWARE);
-    }
+    if (num_ptrs == 0) return -1;
 
-    // Allocate memory for storing the argument chars.
     char *argv_buf = malloc(argv_buf_size);
-    if (argv_buf == NULL) {
-        _Exit(EX_SOFTWARE);
-    }
+    if (argv_buf == NULL) return -1;
 
-    // Allocate memory for the array of pointers. This uses `calloc` both to
-    // handle overflow and to initialize the NULL pointer at the end.
     char **argv = calloc(num_ptrs, sizeof(char *));
-    if (argv == NULL) {
-        free(argv_buf);
-        _Exit(EX_SOFTWARE);
-    }
+    if (argv == NULL) { free(argv_buf); return -1; }
 
-    // Fill the argument chars, and the argv array with pointers into those chars.
-    // TODO: Remove the casts on `argv_ptrs` and `argv_buf` once the witx is updated with char8 support.
     err = __wasi_args_get((uint8_t **)argv, (uint8_t *)argv_buf);
     if (err != __WASI_ERRNO_SUCCESS) {
         free(argv_buf);
         free(argv);
+        return -1;
+    }
+
+    *argc_out = argc;
+    *argv_out = argv;
+    *argv_buf_out = argv_buf;
+    return 0;
+}
+
+// Helper for the two-argument main(argc, argv).
+int __call_main_argc_argv(int (*main)(int argc, char *argv[])) {
+    int argc;
+    char **argv;
+    char *argv_buf;
+
+    if (__get_args(&argc, &argv, &argv_buf) != 0) {
         _Exit(EX_OSERR);
     }
 
-    // Call `__main_argc_argv` with the arguments!
-    return __main_argc_argv(argc, argv);
+    int r = main(argc, argv);
+
+    free(argv);
+    free(argv_buf);
+    return r;
+}
+
+// Helper for the three-argument main(argc, argv, envp).
+int __call_main_argc_argv_envp(int (*main)(int argc, char *argv[], char *envp[])) {
+    extern char **environ;   // WASI libc provides this.
+    int argc;
+    char **argv;
+    char *argv_buf;
+
+    if (__get_args(&argc, &argv, &argv_buf) != 0) {
+        _Exit(EX_OSERR);
+    }
+
+    // environ is already a NULL-terminated array of "VAR=value" strings.
+    int r = main(argc, argv, environ);
+
+    free(argv);
+    free(argv_buf);
+    return r;
 }
