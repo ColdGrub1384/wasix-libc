@@ -10,6 +10,14 @@ if [ "$PIC" != "ON" ]; then PIC=OFF ; fi
 EXNREF_EH=${EXNREF_EH:-ON}
 if [ "$EXNREF_EH" != "OFF" ]; then EXNREF_EH=ON ; fi
 
+if [ "$EH" == "ON" ]; then
+    ADD_FLAGS="-mllvm -wasm-use-legacy-eh=false -mllvm -wasm-enable-sjlj=true"
+else
+    ADD_FLAGS=""
+fi
+
+ADD_FLAGS="$ADD_FLAGS -matomics -mbulk-memory"
+
 REPO_ROOT="$(pwd)"
 
 case "${EH}-${PIC}-${EXNREF_EH}" in
@@ -87,9 +95,9 @@ compiler_rt() {
         -DCMAKE_SYSTEM_VERSION=1 \
         -DCMAKE_SYSTEM_PROCESSOR=wasm32 \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCMAKE_C_FLAGS="$PREFIX_MAP_FLAGS" \
-        -DCMAKE_CXX_FLAGS="$PREFIX_MAP_FLAGS" \
-        -DCMAKE_ASM_FLAGS="$PREFIX_MAP_FLAGS" \
+        -DCMAKE_C_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS" \
+        -DCMAKE_CXX_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS" \
+        -DCMAKE_ASM_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS" \
         -DCMAKE_C_COMPILER_WORKS=ON \
         -DCMAKE_CXX_COMPILER_WORKS=ON \
         -DCMAKE_C_LINKER_DEPFILE_SUPPORTED=OFF \
@@ -200,9 +208,9 @@ libcxx() {
     cmake \
         -DCMAKE_POSITION_INDEPENDENT_CODE="$PIC" \
         -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN" \
-        -DCMAKE_C_FLAGS="$PREFIX_MAP_FLAGS" \
-        -DCMAKE_CXX_FLAGS="$PREFIX_MAP_FLAGS" \
-        -DCMAKE_ASM_FLAGS="$PREFIX_MAP_FLAGS" \
+        -DCMAKE_C_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS -fdeclspec" \
+        -DCMAKE_CXX_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS -fdeclspec" \
+        -DCMAKE_ASM_FLAGS="$PREFIX_MAP_FLAGS $ADD_FLAGS" \
         -DCMAKE_SYSROOT="$REPO_ROOT"/$libcxx_build_sysroot \
         -DCMAKE_INSTALL_PREFIX="$REPO_ROOT"/$libcxx_output \
         -DLIBCXX_ENABLE_THREADS:BOOL=ON \
