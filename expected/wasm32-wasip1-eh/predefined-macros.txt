@@ -5702,6 +5702,7 @@
 #define __LONG_LONG_MAX__ 9223372036854775807LL
 #define __LONG_MAX __LONG_MAX__
 #define __LONG_MAX__ 2147483647L
+#define __MEMORY_SCOPE_CLUSTR 5
 #define __MEMORY_SCOPE_DEVICE 1
 #define __MEMORY_SCOPE_SINGLE 4
 #define __MEMORY_SCOPE_SYSTEM 0
@@ -5805,6 +5806,8 @@
 #define __SHRT_MAX__ 32767
 #define __SID ('S' << 8)
 #define __SIG_ATOMIC_MAX__ 2147483647L
+#define __SIG_ATOMIC_MIN__ (-__SIG_ATOMIC_MAX__ - 1)
+#define __SIG_ATOMIC_TYPE__ long int
 #define __SIG_ATOMIC_WIDTH__ 32
 #define __SIZEOF_DOUBLE__ 8
 #define __SIZEOF_FLOAT__ 4
@@ -6523,10 +6526,12 @@
 #define __WASI_WHENCE_SET (UINT8_C(0))
 #define __WASM_EXCEPTIONS__ 1
 #define __WCHAR_MAX__ 2147483647
+#define __WCHAR_MIN__ (-__WCHAR_MAX__ - 1)
 #define __WCHAR_TYPE__ int
 #define __WCHAR_WIDTH__ 32
 #define __WCLONE 0x80000000
 #define __WINT_MAX__ 2147483647
+#define __WINT_MIN__ (-__WINT_MAX__ - 1)
 #define __WINT_TYPE__ int
 #define __WINT_WIDTH__ 32
 #define __WNOTHREAD 0x20000000
@@ -6637,6 +6642,7 @@
 #define __wasilibc___typedef_suseconds_t_h 
 #define __wasilibc___typedef_time_t_h 
 #define __wasilibc___typedef_uid_t_h 
+#define __wasip1__ 1
 #define __wasix__ 1
 #define __wasix_api_h 
 #define __wasm 1
