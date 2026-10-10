@@ -70,7 +70,8 @@ LIBC_BOTTOM_HALF_SOURCES = $(LIBC_BOTTOM_HALF_DIR)/sources
 LIBC_BOTTOM_HALF_ALL_SOURCES = \
     $(sort \
     $(shell find $(LIBC_BOTTOM_HALF_CLOUDLIBC_SRC) -name \*.c) \
-    $(shell find $(LIBC_BOTTOM_HALF_SOURCES) -name \*.c))
+    $(shell find $(LIBC_BOTTOM_HALF_SOURCES) -name \*.c) \
+    $(shell find $(LIBC_BOTTOM_HALF_SOURCES) -name \*.S))
 
 # FIXME(https://reviews.llvm.org/D85567) - due to a bug in LLD the weak
 # references to a function defined in `chdir.c` only work if `chdir.c` is at the
@@ -454,10 +455,13 @@ CFLAGS += -isystem "$(SYSROOT_INC)"
 # These variables describe the locations of various files and directories in
 # the build tree.
 objs = $(patsubst %.c,$(OBJDIR)/%.o,$(1))
+asmSobjs = $(patsubst %.S,$(OBJDIR)/%.o,$(1))
 asmobjs = $(patsubst %.s,$(OBJDIR)/%.o,$(1))
 DLMALLOC_OBJS = $(call objs,$(DLMALLOC_SOURCES))
 EMMALLOC_OBJS = $(call objs,$(EMMALLOC_SOURCES))
-LIBC_BOTTOM_HALF_ALL_OBJS = $(call objs,$(LIBC_BOTTOM_HALF_ALL_SOURCES))
+LIBC_BOTTOM_HALF_ALL_OBJS = \
+    $(call objs,$(filter %.c,$(LIBC_BOTTOM_HALF_ALL_SOURCES))) \
+    $(call asmSobjs,$(filter %.S,$(LIBC_BOTTOM_HALF_ALL_SOURCES)))
 LIBC_TOP_HALF_ALL_OBJS = $(call asmobjs,$(call objs,$(LIBC_TOP_HALF_ALL_SOURCES)))
 ifeq ($(MALLOC_IMPL),dlmalloc)
 LIBC_OBJS += $(DLMALLOC_OBJS)
@@ -483,6 +487,8 @@ LIBWASI_EMULATED_PROCESS_CLOCKS_OBJS = $(call objs,$(LIBWASI_EMULATED_PROCESS_CL
 LIBWASI_EMULATED_GETPID_OBJS = $(call objs,$(LIBWASI_EMULATED_GETPID_SOURCES))
 LIBWASI_EMULATED_SIGNAL_OBJS = $(call objs,$(LIBWASI_EMULATED_SIGNAL_SOURCES))
 LIBC_BOTTOM_HALF_CRT_OBJS = $(call objs,$(LIBC_BOTTOM_HALF_CRT_SOURCES))
+
+$(info LIBC_OBJS = $(LIBC_OBJS))
 
 # These variables describe the locations of various files and
 # directories in the generated sysroot tree.
@@ -636,6 +642,10 @@ $(OBJDIR)/%.o: %.c include_dirs
 	$(CC) $(CFLAGS) -MD -MP -o $@ -c $<
 
 $(OBJDIR)/%.o: %.s include_dirs
+	@mkdir -p "$(@D)"
+	$(CC) $(ASMFLAGS) -o $@ -c $<
+
+$(OBJDIR)/%.o: %.S include_dirs
 	@mkdir -p "$(@D)"
 	$(CC) $(ASMFLAGS) -o $@ -c $<
 
